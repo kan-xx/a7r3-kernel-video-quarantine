@@ -1,0 +1,4 @@
+# Optional dependencies required only for `make verify-fw` (Unicorn CPU emulation & Capstone disassembly).
+# Offline `make test` uses only Python 3 standard library + host clang + ffmpeg.
+unicorn>=2.0.1
+capstone>=5.0.0
