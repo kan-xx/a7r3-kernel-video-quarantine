@@ -68,7 +68,7 @@ flowchart TB
 | 2 | 编码资源表 | 仅放开 UI/格式门控 (`libObj.so+0x8fea90` / `0x63f7924b`) 即可编码 | 主表 `0x63e24ed0` 与通道表 `0x63e29854` 中 4K 条目最高仅 H.264 Level 5.1 (`rate 2/3/5`)，请求 `rate 0/1` 会静默回退至 29.97p 行，并在 `0x639ed2d8` 无超时轮询中将状态机永久卡死在 `state 5` (`test_original_tables.py`, `test_encoder_buffer_lookup.py`)。 |
 | 3 | MIPS VCD 校验 | MIPS `0x80116378` 参数检查返回 `0` 证明硬件可跑 4K60 | 传入 `Level=255` 与 `TimeScale=0` 同样返回 `0`；且 `0x800dbc24` 在错误管理器状态下**先向邮箱 `0xbf044020` 写入成功 ACK `0x80000000`**，随后才异步抛出 `0x2000` 错误 (`test_vcd_start_validation.py`, `test_vcd_command_ack.py`)。 |
 | 4 | IMX251 Mode 19 | Mode 19 半行周期 `H350/V1716` 或半场高 `H700/V858` 可达成 4K60 | 后处理 `0x637a3da8` 计算 `round(1050/H*100) & 0xff` 发生 **8 位无符号截断**（`300 -> 44`, `301 -> 45`）且仍返回 `R0=0`；而 `H700/V858` 在 `0x635ca140` LC 窗口模型中溢出帧预算 `1,394 ticks`（要求 `V >= 1138`）。软件算术仅剩 Mode 76 `H770/V780`（余量 `200 ticks`）与 Mode 19 `H525/V1144`（余量 `22 ticks`）(`test_mode19_candidates.py`, `test_readout_windows.py`)。 |
-| 5 | 传感器缓存回滚 | 将覆盖槽 `0x6402f4e0` 清回 `FF` 即可恢复原厂 25p 时序 | 清除槽位后调用 `GetParam(76)`（乃至穿插查询 HD Mode 5）**不会触发 `0x637a6540` 重算**，6 张驻留缓存表仍保持篡改态！必须先写入当期原厂描述符强制重算并核对 6 表，再清回 `FF` (`test_restore_sequence.py`)。 |
+| 5 | 传感器缓存回滚 | 将覆盖槽 `0x6402f4e0` 清回 `FF` 即可恢复原厂 25p 时序 | 清除槽位后调用 `GetParam(76)`（乃至穿插查询 HD Mode 5）**不会触发 `0x637a6540` 重算**，6 张驻留缓存表仍保持篡改态。必须先写入当期原厂描述符强制重算并核对 6 表，再清回 `FF` (`test_restore_sequence.py`)。 |
 | 6 | 伪硬件帧计数器 | `getBrokenFrameCount`、`IRQ11` 计数、`PIG A/B` 事件掩码可作真实出帧证明 | `getBrokenFrameCount` 恒为 `movs r0, #1; bx lr`；`IRQ11` (`0x641fded4`) 对 `fact=0` 亦无条件自增；`PIG A/B` 对任意掩码恒发相同汇总事件 ID `0x44000000`/`0x48000000` (`test_irq11_counter.py`, `test_native_semantics.py`)。 |
 | 7 | DMM / VCD 停机回收 | `ImolaStopVcdBus` 或 `dmm_ctrl_FreeUnitHdlr` 返回 `0` 即可安全释放 DMA 内存 | `stop_done` 使用 8 位短键 (`raw+0xa`) 存在 ABA 复用风险；`dmm.ko` 返回 `0` 可能仅递减 `alloc` 引用或保留 `rendezvous` 块，而残留 `open` 引用会释放物理块却返回 `+3`（触发上层误判失败，严禁盲目重试）(`test_dmm_rpc.py`, `test_kernel_free.py`, `test_vcd_bus_fence.py`)。 |
 | 8 | 对焦包围步进 | `SET_STEPFOCUS` (`0x4117`) 参数代表毫米级对焦距离或物理马达步数 | `0x63bc13ac` 仅对 `+0x56d` 处的 **8 位软件序号**做加减回绕（`0 - 1 -> 255`, `255 + 1 -> 0`），不具备镜头极性、物理行程或合焦静止证明 (`focus-bracketing/test_original_focus.py`)。 |
@@ -136,5 +136,5 @@ python3 video-4k60-verifiers/audit_video_sample.py /path/to/C0001.MP4 \
 
 ## 五、安全准则与许可证
 
-- **Fail-Closed 铁律**：在未独立证明 SGC 停机无重启、GIC/LIRO 中断自然排空、PL080 DMA ch7 `ACTIVE` 位（bit 17）清零、VCD 总线静默及 DMM 全引用归零之前，任何异常分支必须停留在 `QUARANTINED` 持锁隔离态，绝不释放仍在被硬件 DMA 写入的物理页。
+- **Fail-Closed 隔离准则**：在未独立证明 SGC 停机无重启、GIC/LIRO 中断自然排空、PL080 DMA ch7 `ACTIVE` 位（bit 17）清零、VCD 总线静默及 DMM 全引用归零之前，任何异常分支必须停留在 `QUARANTINED` 持锁隔离态，绝不释放仍在被硬件 DMA 写入的物理页。
 - 本项目基于 [MIT License](LICENSE) 开源。
