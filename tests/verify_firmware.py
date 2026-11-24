@@ -16,6 +16,11 @@ REPO = Path(__file__).resolve().parent.parent
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--fw-root", default=os.environ.get("A7R3_FW_ROOT"))
+    p.add_argument(
+        "--skip-sha256",
+        action="store_true",
+        help="Skip exact FW 3.10 SHA-256 checks (or set A7R3_SKIP_FW_SHA256=1)",
+    )
     args = p.parse_args()
     if not args.fw_root:
         p.error("Provide --fw-root or set A7R3_FW_ROOT")
@@ -48,12 +53,15 @@ def main() -> None:
         t = Path(tmp)
         for name, cmd_args in suites:
             extra = ["--output", str(t / "canary.ko")] if name == "canary_fw_abi" else []
+            child_env = dict(os.environ, A7R3_FW_ROOT=str(fw_root))
+            if args.skip_sha256:
+                child_env["A7R3_SKIP_FW_SHA256"] = "1"
             res = subprocess.run(
                 [sys.executable, *cmd_args, *extra],
                 check=True,
                 text=True,
                 capture_output=True,
-                env=dict(os.environ, A7R3_FW_ROOT=str(fw_root)),
+                env=child_env,
             )
             parsed = json.loads(res.stdout.strip())
             results[name] = parsed

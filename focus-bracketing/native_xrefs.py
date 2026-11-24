@@ -33,7 +33,8 @@ def main() -> None:
         p.error("Provide --fw-root or set A7R3_FW_ROOT")
 
     b = (Path(args.fw_root) / "nflasha3/export/av-cam.bin").read_bytes()
-    assert hashlib.sha256(b).hexdigest() == AVCAM_SHA256
+    if os.environ.get("A7R3_SKIP_FW_SHA256") != "1":
+        assert hashlib.sha256(b).hexdigest() == AVCAM_SHA256
     targets = collect_target_strings(b)
 
     try:

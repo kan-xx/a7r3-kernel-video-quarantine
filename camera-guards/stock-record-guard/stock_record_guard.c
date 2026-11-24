@@ -166,13 +166,27 @@ static int key_start(unsigned action){
 }
 #ifndef GUARD_FIXTURE
 static int hash_file(const char*p,const unsigned char*expected,unsigned size){
- int fd=open(p,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return 0;struct stat a,b;int okay=!fstat(fd,&a)&&S_ISREG(a.st_mode)&&a.st_size==size;struct sha256 sh;sha_init(&sh);unsigned left=size;unsigned char buf[4096],digest[32];
+ int fd=open(p,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return 0;struct stat a,b;int okay=!fstat(fd,&a)&&S_ISREG(a.st_mode)&&a.st_size==(off_t)size;struct sha256 sh;sha_init(&sh);unsigned left=size;unsigned char buf[4096],digest[32];
  while(okay&&left){unsigned ask=left>sizeof buf?sizeof buf:left;ssize_t z=read(fd,buf,ask);if(z<=0||z>(ssize_t)ask){okay=0;break;}sha_add(&sh,buf,z);left-=z;}
  if(okay&&(read(fd,buf,1)!=0||fstat(fd,&b)||a.st_dev!=b.st_dev||a.st_ino!=b.st_ino||a.st_size!=b.st_size||a.st_mtime!=b.st_mtime))okay=0;sha_end(&sh,digest);if(close(fd))okay=0;return okay&&!memcmp(digest,expected,32);
 }
+static int arm_exec_elf_ok(const char*p,const unsigned char*expected,unsigned size){
+ if(size)return hash_file(p,expected,size);
+ int fd=open(p,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return 0;struct stat a,b;
+ int okay=!fstat(fd,&a)&&S_ISREG(a.st_mode)&&a.st_size>=52&&a.st_size<=262144;
+ unsigned left=okay?(unsigned)a.st_size:0,seen=0;unsigned char buf[4096],hdr[52]={0};
+ while(okay&&left){unsigned ask=left>sizeof buf?sizeof buf:left;ssize_t z=read(fd,buf,ask);if(z<=0||z>(ssize_t)ask){okay=0;break;}
+  if(seen<52){unsigned copy=52-seen>(unsigned)z?(unsigned)z:52-seen;memcpy(hdr+seen,buf,copy);}
+  seen+=(unsigned)z;left-=(unsigned)z;
+ }
+ uint16_t etype=(uint16_t)(hdr[16]|((uint16_t)hdr[17]<<8)),emach=(uint16_t)(hdr[18]|((uint16_t)hdr[19]<<8));
+ if(okay&&(seen<52||memcmp(hdr,"\177ELF\001\001\001",7)||(etype!=2&&etype!=3)||emach!=40))okay=0;
+ if(okay&&(read(fd,buf,1)!=0||fstat(fd,&b)||a.st_dev!=b.st_dev||a.st_ino!=b.st_ino||a.st_size!=b.st_size||a.st_mtime!=b.st_mtime))okay=0;
+ if(close(fd))okay=0;return okay;
+}
 static int production_open(void){
  struct stat cwd,key;struct statfs fs;if(geteuid()||stat(".",&cwd)||!S_ISDIR(cwd.st_mode)||cwd.st_uid||cwd.st_gid||(cwd.st_mode&0777)!=0700||statfs(".",&fs)||fs.f_type!=0x01021994)return -1;
- if(lstat("local-rec-key.elf",&key)||!S_ISREG(key.st_mode)||key.st_uid||key.st_gid||key.st_nlink!=1||(key.st_mode&0777)!=0700||!hash_file("local-rec-key.elf",key_hash,key_bytes))return -1;
+ if(lstat("local-rec-key.elf",&key)||!S_ISREG(key.st_mode)||key.st_uid||key.st_gid||key.st_nlink!=1||(key.st_mode&0777)!=0700||!arm_exec_elf_ok("local-rec-key.elf",key_hash,key_bytes))return -1;
  for(unsigned i=0;i<sizeof identities/sizeof identities[0];i++)if(!hash_file(identities[i].path,identities[i].sha,identities[i].bytes))return -1;
  if(!identity())return -1;
  char cmd[2048],version[8];if(smallfile("/proc/cmdline",cmd,sizeof cmd)<0||!strstr(cmd,"memrsv=0x1A5E000@0x02E68000")||!strstr(cmd,"mem=1G@0"))return -1;

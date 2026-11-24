@@ -57,6 +57,10 @@ IMX251_TABLE_SPECS = (
 )
 
 
+def _skip_fw_sha256() -> bool:
+    return os.environ.get("A7R3_SKIP_FW_SHA256") == "1"
+
+
 def parse_fw_root(description: str = "") -> Path:
     p = argparse.ArgumentParser(description=description)
     p.add_argument(
@@ -64,7 +68,14 @@ def parse_fw_root(description: str = "") -> Path:
         default=os.environ.get("A7R3_FW_ROOT"),
         help="Path to extracted A7R III FW 3.10 filesystems root (or set A7R3_FW_ROOT)",
     )
+    p.add_argument(
+        "--skip-sha256",
+        action="store_true",
+        help="Skip exact FW 3.10 SHA-256 check (or set A7R3_SKIP_FW_SHA256=1)",
+    )
     args = p.parse_args()
+    if args.skip_sha256:
+        os.environ["A7R3_SKIP_FW_SHA256"] = "1"
     if not args.fw_root:
         p.error("Provide --fw-root or set A7R3_FW_ROOT")
     root = Path(args.fw_root)
@@ -75,14 +86,14 @@ def parse_fw_root(description: str = "") -> Path:
 
 def load_avcam(fw_root: Path) -> bytes:
     raw = (fw_root / "nflasha3/export/av-cam.bin").read_bytes()
-    if hashlib.sha256(raw).hexdigest() != AVCAM_SHA256:
+    if not _skip_fw_sha256() and hashlib.sha256(raw).hexdigest() != AVCAM_SHA256:
         raise AssertionError("av-cam.bin SHA-256 mismatch")
     return raw
 
 
 def load_vcd(fw_root: Path) -> bytes:
     raw = (fw_root / "nflasha15/export/codec/vcd_firmware.bin").read_bytes()
-    if hashlib.sha256(raw).hexdigest() != VCD_SHA256:
+    if not _skip_fw_sha256() and hashlib.sha256(raw).hexdigest() != VCD_SHA256:
         raise AssertionError("vcd_firmware.bin SHA-256 mismatch")
     return raw
 

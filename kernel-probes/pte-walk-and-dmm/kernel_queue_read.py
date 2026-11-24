@@ -17,7 +17,8 @@ def kq_u32(pa: int, label: str) -> int:
 def kq_verify_vmlinux_anchors(fw_root: Path | str | None = None) -> bytes:
     root = Path(fw_root or os.environ["A7R3_FW_ROOT"])
     vmlinux = (root / "nflasha3/export/vmlinux.bin").read_bytes()
-    assert hashlib.sha256(vmlinux).hexdigest() == VMLINUX_SHA256
+    if os.environ.get("A7R3_SKIP_FW_SHA256") != "1":
+        assert hashlib.sha256(vmlinux).hexdigest() == VMLINUX_SHA256
     # vmalloc_to_page at 0x601a267c loads literal 0x604c8ea8 (+24 -> init_mm.pgd = 0x604c8ecc)
     assert struct.unpack_from("<I", vmlinux, 0x601A26F4 - 0x60108000)[0] == 0x604C8EA8
     return vmlinux

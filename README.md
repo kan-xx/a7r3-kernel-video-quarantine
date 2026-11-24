@@ -120,6 +120,7 @@ make test
 
 ```bash
 A7R3_FW_ROOT=/path/to/verified-3.10/filesystems make verify-fw
+# 如需在其他版本固件镜像上跳过原厂 3.10 精确哈希门控运行分析器，可附加 A7R3_SKIP_FW_SHA256=1
 ```
 
 `make verify-fw` 会对只读固件依次运行全部 **17 项** ARM/Thumb/VFPv3 与 MIPS32 LE 零桩验证套件（含纯 `av-cam.bin` 原生初始化 IMX251 46 模式表、VCD 邮箱 ACK 顺序、`dmm.ko` 重定位反例、`vmlinux` 页表遍历、`br_native_fence_only` 总线栅栏及 `SET_STEPFOCUS` 步进反例），全程在系统临时目录中进行，不向仓库或固件目录写入任何字节。

@@ -90,7 +90,8 @@ def main() -> None:
         p.error("Provide --fw-root or set A7R3_FW_ROOT")
 
     vmlinux = (Path(args.fw_root) / "nflasha3/export/vmlinux.bin").read_bytes()
-    assert hashlib.sha256(vmlinux).hexdigest() == VMLINUX_SHA256
+    if os.environ.get("A7R3_SKIP_FW_SHA256") != "1":
+        assert hashlib.sha256(vmlinux).hexdigest() == VMLINUX_SHA256
 
     cc = os.environ.get("CLANG") or ("/usr/bin/clang" if Path("/usr/bin/clang").is_file() else shutil.which("clang"))
     assert cc, "clang is required"

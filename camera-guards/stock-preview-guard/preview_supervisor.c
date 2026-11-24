@@ -93,9 +93,17 @@ static int awaitpeer(struct peer*p,unsigned n,unsigned timeout){uint64_t begin=p
 #ifdef PREVIEW_FIXTURE
 extern int fixture_reader(void);
 #else
-static int fixed_file(const char*path,const unsigned char*want,unsigned bytes){int f=open(path,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(f<0)return -1;struct stat a={0},b={0};int ok=!fstat(f,&a)&&S_ISREG(a.st_mode)&&a.st_size==bytes&&a.st_uid==0&&a.st_gid==0&&a.st_nlink==1&&(a.st_mode&0777)==0700;
- struct sha256 h;sha_init(&h);unsigned char block[4096],digest[32];unsigned left=bytes;while(ok&&left){unsigned ask=left>4096?4096:left;ssize_t n=read(f,block,ask);if(n<=0||(unsigned)n>ask){ok=0;break;}sha_add(&h,block,(unsigned)n);left-=(unsigned)n;}sha_end(&h,digest);
- if(read(f,block,1)!=0||fstat(f,&b)||a.st_dev!=b.st_dev||a.st_ino!=b.st_ino||a.st_size!=b.st_size||a.st_mtime!=b.st_mtime||memcmp(want,digest,32))ok=0;if(close(f))ok=0;return ok?0:-1;
+static int fixed_file(const char*path,const unsigned char*want,unsigned bytes){int f=open(path,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(f<0)return -1;struct stat a={0},b={0};
+ int ok=!fstat(f,&a)&&S_ISREG(a.st_mode)&&(bytes?a.st_size==(off_t)bytes:(a.st_size>=52&&a.st_size<=262144))&&a.st_uid==0&&a.st_gid==0&&a.st_nlink==1&&(a.st_mode&0777)==0700;
+ struct sha256 h;sha_init(&h);unsigned char block[4096],digest[32],hdr[52]={0};unsigned left=ok?(unsigned)a.st_size:0,seen=0;
+ while(ok&&left){unsigned ask=left>4096?4096:left;ssize_t n=read(f,block,ask);if(n<=0||(unsigned)n>ask){ok=0;break;}
+  if(seen<52){unsigned copy=52-seen>(unsigned)n?(unsigned)n:52-seen;memcpy(hdr+seen,block,copy);}
+  seen+=(unsigned)n;if(bytes)sha_add(&h,block,(unsigned)n);left-=(unsigned)n;
+ }
+ if(bytes)sha_end(&h,digest);
+ uint16_t etype=(uint16_t)(hdr[16]|((uint16_t)hdr[17]<<8)),emach=(uint16_t)(hdr[18]|((uint16_t)hdr[19]<<8));
+ if(ok&&!bytes&&(seen<52||memcmp(hdr,"\177ELF\001\001\001",7)||(etype!=2&&etype!=3)||emach!=40))ok=0;
+ if(read(f,block,1)!=0||fstat(f,&b)||a.st_dev!=b.st_dev||a.st_ino!=b.st_ino||a.st_size!=b.st_size||a.st_mtime!=b.st_mtime||(bytes&&memcmp(want,digest,32)))ok=0;if(close(f))ok=0;return ok?0:-1;
 }
 static int reader_main(const char*boot,unsigned pid,uint64_t start){
  signal(SIGHUP,SIG_IGN);signal(SIGPIPE,SIG_IGN);signal(SIGINT,SIG_IGN);signal(SIGTERM,SIG_IGN);lockfd=5;

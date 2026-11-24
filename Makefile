@@ -5,17 +5,10 @@ CFLAGS   := -O1 -Wall -Wextra -Werror -Wno-misleading-indentation $(SANFLAGS)
 ASAN_ENV := ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1
 BUILD_DIR := build/tests
 
-# Resolve Python + PYTHONPATH capable of importing `unicorn` for optional `make verify-fw`
+# Resolve Python capable of importing `unicorn` for optional `make verify-fw`
 FW_PYTHON ?= $(shell \
 	if [ -x .venv/bin/python ]; then echo .venv/bin/python; \
-	elif $(PYTHON) -c "import unicorn" >/dev/null 2>&1; then echo $(PYTHON); \
-	elif [ -x ../../work/camera-venv/bin/python ]; then echo ../../work/camera-venv/bin/python; \
 	else echo $(PYTHON); fi)
-
-FW_PYTHONPATH := $(shell \
-	for d in ../../work/*/audio-arbitration-next/python-deps; do \
-		if [ -d "$$d" ]; then cd "$$d" && pwd; break; fi; \
-	done)
 
 .PHONY: all test verify-fw clean
 
@@ -56,8 +49,7 @@ verify-fw:
 		echo "ERROR: Set A7R3_FW_ROOT=/path/to/verified-3.10/filesystems" >&2; \
 		exit 2; \
 	fi
-	PYTHONPATH="$(FW_PYTHONPATH)$${PYTHONPATH:+:$$PYTHONPATH}" \
-		$(FW_PYTHON) tests/verify_firmware.py --fw-root "$(A7R3_FW_ROOT)"
+	$(FW_PYTHON) tests/verify_firmware.py --fw-root "$(A7R3_FW_ROOT)"
 
 clean:
 	rm -rf build dist out *.dSYM

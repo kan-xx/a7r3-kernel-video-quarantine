@@ -32,7 +32,7 @@ static int epoch(void){char b[2048],p[80],exe[64];if(text("/proc/sys/kernel/rand
  return got==start;
 }
 static int same_stat(const struct stat*a,const struct stat*b){return a->st_dev==b->st_dev&&a->st_ino==b->st_ino&&a->st_mode==b->st_mode&&a->st_uid==b->st_uid&&a->st_gid==b->st_gid&&a->st_nlink==b->st_nlink&&a->st_size==b->st_size&&a->st_mtime==b->st_mtime&&a->st_ctime==b->st_ctime;}
-static int file_identity(unsigned i,int full){const struct reader_identity*x=&reader_identities[i];struct stat st;int f=open(x->path,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(f<0)return -1;int ok=!fstat(f,&st)&&S_ISREG(st.st_mode)&&st.st_size==x->bytes;
+static int file_identity(unsigned i,int full){const struct reader_identity*x=&reader_identities[i];struct stat st;int f=open(x->path,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(f<0)return -1;int ok=!fstat(f,&st)&&S_ISREG(st.st_mode)&&st.st_size==(off_t)x->bytes;
  if(ok&&!full)ok=same_stat(&st,&files[i]);
  if(ok&&full){unsigned char buf[4096],digest[32];struct sha256 h;sha_init(&h);unsigned left=x->bytes;while(ok&&left){unsigned ask=left>sizeof buf?sizeof buf:left;ssize_t n=read(f,buf,ask);if(n<=0||(unsigned)n>ask){ok=0;break;}sha_add(&h,buf,(unsigned)n);left-=(unsigned)n;}sha_end(&h,digest);struct stat after;if(read(f,buf,1)!=0||fstat(f,&after)||!same_stat(&st,&after)||memcmp(digest,x->sha,32))ok=0;}
  if(close(f))ok=0;if(ok&&full)files[i]=st;return ok?0:-1;

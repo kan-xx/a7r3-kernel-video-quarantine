@@ -1,5 +1,9 @@
-static const unsigned char key_hash[32]={159,202,119,171,133,37,74,101,73,36,121,167,122,105,113,3,235,77,249,79,122,67,199,158,216,199,212,252,31,168,50,126};
-static const unsigned key_bytes=3800;
+/* Set key_bytes = 0 to validate user-compiled local-rec-key.elf via bounded
+ * ARM32 ELF32 executable header + root 0700 stat invariance; set non-zero
+ * key_bytes + key_hash to pin a specific build. Stock FW 3.10 files below
+ * always retain exact SHA-256 verification. */
+static const unsigned char key_hash[32]={0};
+static const unsigned key_bytes=0;
 struct identity_entry {const char *path;unsigned bytes;unsigned char sha[32];};
 static const struct identity_entry identities[]={
 {"/usr/bin/im.elf",21868,{134,103,41,235,11,193,230,245,171,160,77,139,248,228,84,145,152,90,254,137,160,120,204,177,6,161,206,36,118,134,82,37}},

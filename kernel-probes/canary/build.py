@@ -56,7 +56,8 @@ def build_canary_ko(output: Path, fw_root: Path | None = None, clang: str | None
     if fw_root is not None:
         orig_ko = fw_root / "nflasha15/export/kmod/nls_utf8.ko"
         orig_raw = orig_ko.read_bytes()
-        assert hashlib.sha256(orig_raw).hexdigest() == EXPECTED_NLS_UTF8_SHA256
+        if os.environ.get("A7R3_SKIP_FW_SHA256") != "1":
+            assert hashlib.sha256(orig_raw).hexdigest() == EXPECTED_NLS_UTF8_SHA256
         orig_e = Elf32Rel(orig_raw)
         orig_tm = orig_e.section_by_name(".gnu.linkonce.this_module")
         assert orig_tm["sh_size"] == 0x13C and orig_tm["sh_flags"] == 3

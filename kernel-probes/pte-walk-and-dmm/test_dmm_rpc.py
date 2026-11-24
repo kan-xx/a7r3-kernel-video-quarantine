@@ -33,7 +33,8 @@ def main() -> None:
         p.error("Set A7R3_FW_ROOT or pass --fw-root")
 
     raw = (Path(args.fw_root) / "nflasha3/export/av-cam.bin").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == AVCAM_SHA256
+    if os.environ.get("A7R3_SKIP_FW_SHA256") != "1":
+        assert hashlib.sha256(raw).hexdigest() == AVCAM_SHA256
 
     inputs = [
         ("valid", 0, 0, 0x1111, 0, 0x8004, 0xE0BF, 0),
